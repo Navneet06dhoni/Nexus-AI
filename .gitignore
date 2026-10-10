@@ -1,0 +1,77 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+env/
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+.env
+.env.*
+!.env.example
+.venv
+venv/
+ENV/
+.pytest_cache/
+.coverage
+htmlcov/
+
+# Node & Next.js
+node_modules/
+.next/
+out/
+dist/
+coverage/
+.vercel
+*.tsbuildinfo
+next-env.d.ts
+
+# Logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.pnpm-debug.log*
+
+# OS & IDE
+.DS_Store
+Thumbs.db
+*.swp
+*.swo
+.vscode/
+.idea/
+# Local datasets and potentially sensitive records
+data/cbi_archived_firs/
+data/cbi_firs/
+data/historical_cases/
+data/knowledge_base/
+data/sample_bank/
+data/sample_cdrs/
+data/sample_firs/
+data/cbi_aggregate_graph.graphml
+data/cbi_aggregate_graph.json
+data/cbi_firs_manifest.json
+# Virtual environments
+**/.venv/
+**/venv/
+
+# Local datasets
+data/
+
+# Local database and test outputs
+backend/*.db
+backend/test_bitdeer.json
+backend/test_stream.json
