@@ -8,6 +8,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from app.api.endpoints import router as cases_router, blockchain_router, flowchart_router, chat_router
 from app.api.uidb import router as uidb_router
+from app.api.clustering import router as clustering_router
 
 app = FastAPI(
     title="NyayaGraph-GN API",
@@ -28,6 +29,7 @@ app.include_router(blockchain_router)
 app.include_router(flowchart_router)
 app.include_router(chat_router)
 app.include_router(uidb_router)
+app.include_router(clustering_router)
 
 @app.get("/")
 def read_root():
@@ -46,6 +48,11 @@ def read_root():
             "verify_evidence": "/api/v1/blockchain/verify/{hash_or_tx}",
             "ledger": "/api/v1/blockchain/ledger",
             "flowchart_chapters": "/api/v1/flowchart/chapters",
+            "clustering_comparison": "/api/v1/clustering/models-comparison",
+            "clustering_best_model": "/api/v1/clustering/best-model",
+            "clustering_nodes": "/api/v1/clustering/cluster-nodes",
+            "clustering_visualizations": "/api/v1/clustering/visualizations",
+            "clustering_predict": "/api/v1/clustering/predict",
             "health": "/api/v1/health"
         }
     }

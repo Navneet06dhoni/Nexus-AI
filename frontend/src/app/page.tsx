@@ -6,6 +6,7 @@ import ObsidianGraphView from "@/components/ObsidianGraphView";
 import CasesExplorerView from "@/components/CasesExplorerView";
 import DetectiveChatView from "@/components/DetectiveChatView";
 import { FlowchartView } from "@/components/FlowchartView";
+import ClusteringAnalysisView from "@/components/ClusteringAnalysisView";
 import { fetchFlowchartChapters } from "@/lib/api";
 import { useTheme } from "@/context/ThemeContext";
 import type { FlowChapter } from "@/data/cyberlifeData";
@@ -19,9 +20,10 @@ import {
   Cpu,
   Sun,
   Moon,
+  Layers,
 } from "lucide-react";
 
-export type ActiveAppView = "dashboard" | "graph" | "cases" | "chat" | "flowchart";
+export type ActiveAppView = "dashboard" | "graph" | "cases" | "chat" | "flowchart" | "clustering";
 
 export default function Home() {
   const { theme, toggleTheme } = useTheme();
@@ -118,6 +120,7 @@ export default function Home() {
             { id: "dashboard", label: "Dashboard", icon: LayoutDashboard },
             { id: "graph", label: "Syndicate Graph", icon: Network },
             { id: "cases", label: "Cases & FIRs", icon: FolderArchive },
+            { id: "clustering", label: "ML Clusters", icon: Layers, badge: "Best: GMM" },
             { id: "chat", label: "Detective AI", icon: MessageSquareCode, badge: "DeepSeek" },
             { id: "flowchart", label: "Procedural Flow", icon: GitFork },
           ].map((tab) => {
@@ -217,6 +220,12 @@ export default function Home() {
               onJumpToCase={handleOpenCaseInExplorer}
               onJumpToGraph={handleJumpToGlobalGraph}
             />
+          </div>
+        )}
+
+        {view === "clustering" && (
+          <div className="h-full w-full">
+            <ClusteringAnalysisView />
           </div>
         )}
 
