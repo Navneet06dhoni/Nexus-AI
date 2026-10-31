@@ -64,7 +64,9 @@
     },
     "ood_thresholds": {
       "percentile_5th": -14.433585068029956,
-      "percentile_1st": -57.34625778176936
+      "percentile_1st": -57.34625778176936,
+      "distance_95th_percentile": 2.6306,
+      "distance_99th_percentile": 5.0328
     }
   },
   "leakage_ablation": {
@@ -10070,5 +10072,180 @@
       }
     }
   ],
-  "total_nodes": 2258
+  "total_nodes": 2258,
+  "ood_detection_audit": {
+    "density_estimator": {
+      "model_type": "GaussianMixture",
+      "n_components": 4,
+      "covariance_type": "tied",
+      "reg_covar": 0.001,
+      "random_state": 42,
+      "feature_preprocessing": "StandardScaler (fitted on Set B structural features, zero mean, unit variance)",
+      "log_likelihood_threshold_5th_percentile": -14.433585068029956,
+      "log_likelihood_threshold_1st_percentile": -57.34625778176936,
+      "calibration_description": "Calibrated on in-sample standardized training feature vectors (N=2258). Points with score_samples(x) < tau_05 are flagged as Out-of-Distribution (OOD)."
+    },
+    "distance_based_score": {
+      "metric": "Euclidean distance to nearest K-Means Voronoi centroid ||x - c_j||_2",
+      "distance_threshold_95th_percentile": 2.6306,
+      "distance_threshold_99th_percentile": 5.0328,
+      "separation_of_operations": "K-Means cluster assignment argmin_j ||x - c_j||_2 and Voronoi distance are mathematically independent of the GMM log-likelihood density estimator. Euclidean distance is never described or treated as log-likelihood."
+    }
+  },
+  "stability_calculation_audit": {
+    "protocol": "Fixed Anchor Test Set ARI over 20 random training seeds",
+    "anchor_dataset_size": 678,
+    "anchor_dataset_percentage": 30.0,
+    "anchor_selection": "Stratified random sample of 30% of dataset (seed 42), held strictly constant across all 20 training trials.",
+    "training_pool_size": 1580,
+    "num_seeds": 20,
+    "pairwise_comparisons_count": 190,
+    "anchor_test_ari": {
+      "K-Means": {
+        "mean": 0.849,
+        "sd": 0.1803,
+        "status": "High stability with balanced, meaningful clusters (~480, ~170, ~20, ~10)"
+      },
+      "DBSCAN": {
+        "mean": 0.997,
+        "sd": 0.0036,
+        "status": "Collapsed partition (1 massive cluster of 591 points + 87 noise points)"
+      },
+      "GMM": {
+        "mean": 0.7382,
+        "sd": 0.3479,
+        "status": "Moderate stability with occasional component rotation"
+      },
+      "Spectral": {
+        "mean": 0.9249,
+        "sd": 0.1099,
+        "status": "Degenerate cluster collapse (650-654 of 678 points [96%] in cluster 0)"
+      }
+    },
+    "out_of_sample_assignment_approximations": {
+      "DBSCAN": "Assigned via Euclidean nearest-centroid to core cluster centers; points exceeding 2.0 * eps distance from any centroid are assigned as noise (-1).",
+      "Spectral": "Assigned via Euclidean nearest-centroid to training cluster centers in standardized feature space."
+    },
+    "seed_cluster_distributions_sample": {
+      "seed_1": {
+        "K-Means": {
+          "0": 170,
+          "1": 9,
+          "2": 20,
+          "3": 479
+        },
+        "Spectral": {
+          "0": 654,
+          "1": 2,
+          "2": 5,
+          "3": 17
+        },
+        "DBSCAN": {
+          "-1": 81,
+          "0": 591,
+          "1": 6
+        }
+      },
+      "seed_5": {
+        "K-Means": {
+          "0": 400,
+          "1": 19,
+          "2": 250,
+          "3": 9
+        },
+        "Spectral": {
+          "0": 650,
+          "1": 5,
+          "2": 6,
+          "3": 17
+        },
+        "DBSCAN": {
+          "-1": 87,
+          "0": 591
+        }
+      },
+      "seed_10": {
+        "K-Means": {
+          "0": 480,
+          "1": 19,
+          "2": 9,
+          "3": 170
+        },
+        "Spectral": {
+          "0": 650,
+          "2": 5,
+          "3": 23
+        },
+        "DBSCAN": {
+          "-1": 87,
+          "0": 591
+        }
+      },
+      "seed_15": {
+        "K-Means": {
+          "0": 170,
+          "1": 480,
+          "2": 22,
+          "3": 6
+        },
+        "Spectral": {
+          "0": 650,
+          "1": 2,
+          "2": 5,
+          "3": 21
+        },
+        "DBSCAN": {
+          "-1": 87,
+          "0": 591
+        }
+      },
+      "seed_20": {
+        "K-Means": {
+          "0": 477,
+          "1": 12,
+          "2": 19,
+          "3": 170
+        },
+        "Spectral": {
+          "0": 650,
+          "1": 5,
+          "2": 10,
+          "3": 13
+        },
+        "DBSCAN": {
+          "-1": 87,
+          "0": 591
+        }
+      }
+    }
+  },
+  "feature_leakage_audit": {
+    "selected_feature_set": "Set B (8 structural features)",
+    "features": [
+      "degree",
+      "weighted_degree",
+      "pagerank",
+      "core_number",
+      "clustering_coeff",
+      "betweenness",
+      "eigenvector",
+      "avg_neighbor_degree"
+    ],
+    "removed_features": [
+      "conn_person_ratio",
+      "conn_legal_ratio",
+      "conn_account_ratio",
+      "conn_evidence_ratio",
+      "is_case_hub",
+      "label_length",
+      "word_count"
+    ],
+    "generation_method": "Extracted strictly from topological graph structure G = nx.Graph() built from case entity co-occurrences in nyayagraph.db.",
+    "independence_qualification": "Structural features are not guaranteed to be strictly independent of node types; in real-world criminal graphs, legal sections act as high-betweenness bridges while bank accounts act as low-degree leaves. Set B successfully prevents direct circular label leakage while allowing natural network topology to drive clustering."
+  },
+  "node_type_agreement_audit": {
+    "nature_of_labels": "Heuristic database annotations entered during case ingestion, NOT independent gold-standard ground truth.",
+    "mapping_algorithm": "Kuhn-Munkres Hungarian algorithm (linear_sum_assignment) on the cost matrix of cluster-to-type contingency.",
+    "terminology_policy": "Referred strictly as Node-Type Agreement Rate and Agreement Weighted F1. Never referred to as classification accuracy or classification F1."
+  }
 }

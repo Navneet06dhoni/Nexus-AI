@@ -713,6 +713,12 @@ export default function ClusteringAnalysisView() {
                         <span className="text-ink-muted">Centroid Distance:</span>
                         <span className="text-ink font-semibold">{predictionResult.distance_to_centroid}</span>
                       </div>
+                      {predictionResult.centroid_distance_threshold_95th !== undefined && (
+                        <div className="flex justify-between text-ink-muted text-[10px]">
+                          <span>Centroid Dist Cutoff (95th):</span>
+                          <span>{predictionResult.centroid_distance_threshold_95th}</span>
+                        </div>
+                      )}
                       <div className="flex justify-between">
                         <span className="text-ink-muted">Log-Likelihood:</span>
                         <span className={`font-semibold ${predictionResult.is_out_of_distribution ? "text-amber-500" : "text-emerald-500"}`}>

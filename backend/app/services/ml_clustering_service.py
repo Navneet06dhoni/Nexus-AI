@@ -156,7 +156,8 @@ class MLClusteringService:
             pca = self.model_data.get("pca")
             cluster_to_label_map = self.model_data["cluster_to_label_map"]
             density_estimator = self.model_data.get("density_estimator")
-            ood_threshold = self.model_data.get("ood_threshold_5th_percentile", -14.43)
+            ood_threshold = self.model_data.get("ood_threshold_5th_percentile", -14.4336)
+            dist_thresh_95 = self.model_data.get("centroid_distance_threshold_95th", 2.6306)
 
             X_scaled = scaler.transform(X_raw)
 
@@ -164,6 +165,7 @@ class MLClusteringService:
             cluster_id = int(model.predict(X_scaled)[0])
             centroid = model.cluster_centers_[cluster_id]
             dist_to_centroid = float(np.linalg.norm(X_scaled[0] - centroid))
+            is_dist_outlier = bool(dist_to_centroid > dist_thresh_95)
 
             # Density estimation & Out-of-Distribution (OOD) check
             log_prob = float(density_estimator.score_samples(X_scaled)[0]) if density_estimator else 0.0
@@ -183,6 +185,8 @@ class MLClusteringService:
                 "assigned_cluster": cluster_id,
                 "mapped_node_type": mapped_label,
                 "distance_to_centroid": round(dist_to_centroid, 4),
+                "centroid_distance_threshold_95th": round(dist_thresh_95, 4),
+                "is_distance_outlier": is_dist_outlier,
                 "log_likelihood": round(log_prob, 4),
                 "ood_threshold_5th_percentile": round(ood_threshold, 4),
                 "is_out_of_distribution": is_ood,
