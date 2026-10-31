@@ -12,27 +12,23 @@ ml_service = MLClusteringService()
 
 
 class EntityPredictionRequest(BaseModel):
-    label: str = Field("Mohd. Tariq @ Chotu", description="Entity name or identifier")
-    degree: Optional[float] = Field(2.0, description="Node degree (connected links)")
-    weighted_degree: Optional[float] = Field(6.0, description="Sum of link weights")
-    pagerank: Optional[float] = Field(0.0004, description="PageRank centrality score")
-    core_number: Optional[float] = Field(1.0, description="K-core decomposition number")
-    clustering_coeff: Optional[float] = Field(0.0, description="Local clustering coefficient")
-    betweenness: Optional[float] = Field(0.001, description="Betweenness centrality")
-    eigenvector: Optional[float] = Field(0.008, description="Eigenvector centrality")
-    avg_neighbor_degree: Optional[float] = Field(15.0, description="Average neighbor degree")
-    conn_person_ratio: Optional[float] = Field(0.1, description="Ratio of connections to persons")
-    conn_legal_ratio: Optional[float] = Field(0.0, description="Ratio of connections to legal sections")
-    conn_evidence_ratio: Optional[float] = Field(0.9, description="Ratio of connections to evidence hubs")
-    conn_bank_ratio: Optional[float] = Field(0.0, description="Ratio of connections to banks")
-    is_case_hub: Optional[float] = Field(0.0, description="1 if FIR case hub, 0 otherwise")
+    label: str = Field("Accused Entity / Broker Node", description="Entity name or label")
+    degree: float = Field(..., description="Node degree (connected links) - REQUIRED")
+    weighted_degree: float = Field(..., description="Sum of incident link weights - REQUIRED")
+    pagerank: float = Field(..., description="PageRank centrality score - REQUIRED")
+    core_number: float = Field(..., description="K-core decomposition number - REQUIRED")
+    clustering_coeff: float = Field(..., description="Local clustering coefficient - REQUIRED")
+    betweenness: float = Field(..., description="Betweenness centrality score - REQUIRED")
+    eigenvector: float = Field(..., description="Eigenvector centrality score - REQUIRED")
+    avg_neighbor_degree: float = Field(..., description="Average neighbor degree - REQUIRED")
 
 
 @router.get("/models-comparison")
 def get_models_comparison():
     """
-    Returns the comparative evaluation of all four unsupervised clustering models:
-    K-Means, DBSCAN, Gaussian Mixture Model (GMM), and Spectral Clustering.
+    Returns the comparative evaluation and leakage ablation of all four unsupervised models:
+    K-Means, DBSCAN, Gaussian Mixture Model (GMM), and Spectral Clustering on both
+    Set A (15 features with neighbor ratios) and Set B (8 structural features).
     """
     return ml_service.get_models_comparison()
 
@@ -40,8 +36,9 @@ def get_models_comparison():
 @router.get("/best-model")
 def get_best_model():
     """
-    Returns the selected best-performing model (Gaussian Mixture Model),
-    hyperparameters, performance metrics, technical justification, and confusion matrix.
+    Returns the selected best-performing model (K-Means on Set B structural features),
+    selection rule, 70/30 split evaluation metrics (mean ± sd over 20 seeds),
+    out-of-distribution log-likelihood thresholds, and agreement matrix.
     """
     return ml_service.get_best_model_details()
 
@@ -50,12 +47,12 @@ def get_best_model():
 def get_cluster_nodes(
     offset: int = Query(0, ge=0),
     limit: int = Query(50, ge=1, le=500),
-    category: Optional[str] = Query(None, description="Filter by forensic category"),
+    category: Optional[str] = Query(None, description="Filter by node-type label"),
     cluster_id: Optional[int] = Query(None, description="Filter by cluster ID (0-3)")
 ):
     """
-    Returns clustered graph nodes with their cluster assignments across algorithms,
-    2D PCA visualization coordinates, and original features.
+    Returns clustered graph nodes with their structural cluster assignments,
+    2D PCA visualization coordinates, and original Set B structural features.
     """
     return ml_service.get_clustered_nodes(offset=offset, limit=limit, category=category, cluster_id=cluster_id)
 
@@ -71,10 +68,11 @@ def get_visualizations():
 @router.post("/predict")
 def predict_entity_cluster(request: EntityPredictionRequest):
     """
-    Inference endpoint: Preprocesses and classifies a new entity record using the
-    saved best model (GMM) with posterior probability confidence scoring.
+    Inference endpoint: Requires all 8 structural features, classifies the entity
+    into a structural cluster via K-Means centroids, and flags Out-of-Distribution (OOD)
+    records based on the log-likelihood percentile threshold.
     """
     res = ml_service.predict_entity(request.dict())
     if "error" in res:
-        raise HTTPException(status_code=500, detail=res["error"])
+        raise HTTPException(status_code=400, detail=res["error"])
     return res

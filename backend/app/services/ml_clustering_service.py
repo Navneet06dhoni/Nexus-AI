@@ -10,8 +10,8 @@ logger = logging.getLogger("nyayagraph.ml_clustering")
 class MLClusteringService:
     """
     Modular Unsupervised Machine Learning Clustering Service for Nexus AI.
-    Loads trained clustering artifacts, comparative metrics, and provides
-    real-time inductive prediction with posterior probability confidence.
+    Loads trained clustering artifacts, leakage ablation benchmarks, GMM sanity checks,
+    and provides real-time inductive prediction with Out-of-Distribution (OOD) flagging.
     """
 
     def __init__(self):
@@ -43,18 +43,21 @@ class MLClusteringService:
             logger.error(f"Error loading ML clustering artifacts: {e}", exc_info=True)
 
     def get_models_comparison(self) -> Dict[str, Any]:
-        """Returns the 4-model comparative evaluation table and metadata."""
+        """Returns the comparative evaluation and leakage ablation tables."""
         if not self.results_json:
-            return {"error": "Clustering results not loaded", "comparison": []}
+            return {"error": "Clustering results not loaded", "leakage_ablation": {}}
         return {
-            "title": "Unsupervised Clustering Comparative Evaluation (SIH26189)",
-            "models_count": len(self.results_json.get("comparison", [])),
-            "comparison": self.results_json.get("comparison", []),
+            "title": self.results_json.get("title", "Comparative Evaluation"),
+            "selection_rule": self.results_json.get("selection_rule", ""),
+            "chosen_feature_set": self.results_json.get("chosen_feature_set", ""),
+            "leakage_ablation": self.results_json.get("leakage_ablation", {}),
+            "gmm_sanity_check": self.results_json.get("gmm_sanity_check", []),
+            "numeric_verifications": self.results_json.get("numeric_verifications", {}),
             "total_dataset_nodes": self.results_json.get("total_nodes", 0)
         }
 
     def get_best_model_details(self) -> Dict[str, Any]:
-        """Returns the selected best model, justification, and confusion matrix."""
+        """Returns the selected best model, 70/30 metrics, and confusion matrix."""
         if not self.results_json:
             return {"error": "Best model details not loaded"}
         return self.results_json.get("best_model", {})
@@ -75,10 +78,14 @@ class MLClusteringService:
 
         if category:
             cat_lower = category.lower().strip()
-            filtered = [n for n in filtered if cat_lower in n.get("gmm_predicted_category", "").lower() or cat_lower in n.get("actual_category", "").lower()]
+            filtered = [
+                n for n in filtered
+                if cat_lower in str(n.get("mapped_node_type", "")).lower()
+                or cat_lower in str(n.get("node_type_label", "")).lower()
+            ]
 
         if cluster_id is not None:
-            filtered = [n for n in filtered if n.get("gmm_cluster") == cluster_id]
+            filtered = [n for n in filtered if n.get("assigned_cluster") == cluster_id]
 
         total = len(filtered)
         paged = filtered[offset : offset + limit]
@@ -92,32 +99,32 @@ class MLClusteringService:
         }
 
     def get_visualizations(self) -> Dict[str, Any]:
-        """Returns image URLs and data for frontend visualization widgets."""
+        """Returns visualization catalog and explained variance metadata."""
         return {
             "plots": [
                 {
                     "id": "metric_comparison",
-                    "title": "4-Model Performance Metric Benchmarks",
+                    "title": "Leakage Ablation Benchmarks (Set A vs Set B)",
                     "url": "/images/metric_comparison.png",
-                    "description": "Silhouette Score, Davies-Bouldin Index, Calinski-Harabasz Index, and Ground-Truth Hungarian F1."
+                    "description": "Comparison of Davies-Bouldin, Calinski-Harabasz, Silhouette, and Node-Type Agreement across 20 split seeds."
                 },
                 {
                     "id": "confusion_matrix",
-                    "title": "Best Model Confusion Matrix (GMM)",
+                    "title": "Node-Type Agreement Matrix (Set B Structural Features)",
                     "url": "/images/confusion_matrix_best_model.png",
-                    "description": "Actual CBI Ground-Truth Classes vs Hungarian Mapped Predicted Classes."
+                    "description": "Agreement with dataset node-type labels (NOT independent ground truth)."
                 },
                 {
                     "id": "pca_clusters",
-                    "title": "2D PCA Projection of Clustered Crime Network",
+                    "title": "2D PCA Projection of Structural Clusters (Set B)",
                     "url": "/images/pca_clusters_gmm.png",
-                    "description": "Principal Component Analysis projection of 2,258 network entities."
+                    "description": "Principal Component Analysis projection of structural crime network clusters."
                 },
                 {
                     "id": "cluster_distribution",
                     "title": "Cluster Size & Category Distribution",
                     "url": "/images/cluster_distribution.png",
-                    "description": "Distribution of entities categorized across Gaussian mixture components."
+                    "description": "Distribution of entities categorized across discovered structural clusters."
                 }
             ],
             "pca_explained_variance": self.results_json.get("pca_explained_variance", []) if self.results_json else []
@@ -125,50 +132,47 @@ class MLClusteringService:
 
     def predict_entity(self, entity_data: Dict[str, Any]) -> Dict[str, Any]:
         """
-        Classifies a new or unseen entity/node using the fitted StandardScaler
-        and Gaussian Mixture Model (GMM). Returns predicted cluster, mapped forensic
-        category, and posterior probability confidence.
+        Classifies a new entity using the fitted StandardScaler + K-Means model on Set B.
+        Requires all 8 structural features and checks for Out-of-Distribution (OOD) status.
         """
         if not self.model_data:
             return {"error": "Fitted model artifact not loaded"}
 
         try:
-            model = self.model_data["model"]
-            scaler = self.model_data["scaler"]
-            pca = self.model_data.get("pca")
-            feature_cols = self.model_data["feature_cols"]
-            cluster_to_class = self.model_data["cluster_to_class"]
-            unique_classes = self.model_data["unique_classes"]
+            feature_cols = self.model_data["feature_cols"]  # 8 structural features
+            
+            # REQUIRE ALL FEATURES (Reject missing values)
+            missing_features = [col for col in feature_cols if entity_data.get(col) is None]
+            if missing_features:
+                raise ValueError(
+                    f"All {len(feature_cols)} structural features are strictly required. Missing: {missing_features}"
+                )
 
-            # Extract or default feature vector
-            feat_vector = []
-            for col in feature_cols:
-                val = entity_data.get(col)
-                if val is None:
-                    # Provide intuitive defaults if caller provides partial features
-                    if col == "label_length":
-                        val = len(str(entity_data.get("label", "")))
-                    elif col == "word_count":
-                        val = len(str(entity_data.get("label", "")).split())
-                    elif col == "is_case_hub":
-                        val = 1.0 if "hub" in str(entity_data.get("label", "")).lower() else 0.0
-                    else:
-                        val = 0.0
-                feat_vector.append(float(val))
-
+            feat_vector = [float(entity_data[col]) for col in feature_cols]
             X_raw = np.array([feat_vector])
+
+            scaler = self.model_data["scaler"]
+            model = self.model_data["model"]
+            pca = self.model_data.get("pca")
+            cluster_to_label_map = self.model_data["cluster_to_label_map"]
+            density_estimator = self.model_data.get("density_estimator")
+            ood_threshold = self.model_data.get("ood_threshold_5th_percentile", -14.43)
+
             X_scaled = scaler.transform(X_raw)
 
-            # GMM prediction & probabilities
+            # Predict cluster via Voronoi centroids
             cluster_id = int(model.predict(X_scaled)[0])
-            probs = model.predict_proba(X_scaled)[0].tolist()
-            log_prob = float(model.score_samples(X_scaled)[0])
+            centroid = model.cluster_centers_[cluster_id]
+            dist_to_centroid = float(np.linalg.norm(X_scaled[0] - centroid))
 
-            # Map cluster to class
-            class_idx = cluster_to_class.get(cluster_id, 0)
-            mapped_category = unique_classes[class_idx] if class_idx < len(unique_classes) else "UNKNOWN"
+            # Density estimation & Out-of-Distribution (OOD) check
+            log_prob = float(density_estimator.score_samples(X_scaled)[0]) if density_estimator else 0.0
+            is_ood = bool(log_prob < ood_threshold)
 
-            # 2D PCA projection for live visual positioning
+            # Mapped node-type label
+            mapped_label = cluster_to_label_map.get(cluster_id, "UNKNOWN")
+
+            # 2D PCA projection coordinates
             pca_coords = [0.0, 0.0]
             if pca:
                 pca_proj = pca.transform(X_scaled)
@@ -176,13 +180,14 @@ class MLClusteringService:
 
             return {
                 "entity_label": entity_data.get("label", "Unknown"),
-                "predicted_cluster": cluster_id,
-                "forensic_category": mapped_category,
-                "confidence_score": round(float(max(probs)), 4),
-                "posterior_probabilities": {f"cluster_{i}": round(float(p), 4) for i, p in enumerate(probs)},
+                "assigned_cluster": cluster_id,
+                "mapped_node_type": mapped_label,
+                "distance_to_centroid": round(dist_to_centroid, 4),
                 "log_likelihood": round(log_prob, 4),
+                "ood_threshold_5th_percentile": round(ood_threshold, 4),
+                "is_out_of_distribution": is_ood,
                 "pca_projection": {"x": pca_coords[0], "y": pca_coords[1]},
-                "model_used": "Gaussian Mixture Model (full covariance)"
+                "model_used": "K-Means (Set B Structural Features)"
             }
         except Exception as e:
             logger.error(f"Prediction failed: {e}", exc_info=True)

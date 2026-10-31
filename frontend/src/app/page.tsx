@@ -120,7 +120,7 @@ export default function Home() {
             { id: "dashboard", label: "Dashboard", icon: LayoutDashboard },
             { id: "graph", label: "Syndicate Graph", icon: Network },
             { id: "cases", label: "Cases & FIRs", icon: FolderArchive },
-            { id: "clustering", label: "ML Clusters", icon: Layers, badge: "Best: GMM" },
+            { id: "clustering", label: "ML Clusters", icon: Layers, badge: "K-Means (Set B)" },
             { id: "chat", label: "Detective AI", icon: MessageSquareCode, badge: "DeepSeek" },
             { id: "flowchart", label: "Procedural Flow", icon: GitFork },
           ].map((tab) => {
